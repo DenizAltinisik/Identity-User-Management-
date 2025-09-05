@@ -1,0 +1,115 @@
+SUNUM & DEMO PLANI
+
+Kısa özet
+- Projenin amacı: Kullanıcı kaydı, JWT auth, kullanıcı yönetimi ve rol tabanlı erişim sağlayan küçük bir REST API.
+- Tech stack: .NET 8, EF Core, ASP.NET Identity, JWT, Swagger.
+
+Check-list (hızlı)
+- [ ] 5–10 dk konuşma taslağı hazırla: amaç, kullanılan teknolojiler, kısa mimari.
+- [ ] 10–15 dk canlı demo akışı hazırla: register → assign role → login → admin endpoint.
+- [ ] Aşağıdaki dosyaları oku/ezberle: `Program.cs`, `AuthController.cs`, `PersonController.cs`, `RoleController.cs`, `PersonSeeder.cs`, `appsettings.json`.
+- [ ] 2–3 sık sorulan teknik soru için kısa cevap hazırla.
+- [ ] 2 dry-run yap (1 gece önce, 1 saat önce).
+- [ ] Hata kurtarma planı hazırla (403, token issue, DB fail).
+
+Sunum sırası (20–30 dk öneri)
+1) Açılış (1 dk)
+   - Tek cümle: Projenin amacı.
+2) Tech stack & hızlı bilgiler (1 dk)
+3) Mimari özeti (3–4 dk)
+   - Veri modeli: `Person : IdentityUser` (FirstName, LastName, RegisterDate, IsActive).
+   - Veri erişimi: `ApplicationDBContext` (EF Core) — sorgular, DTO mapping.
+   - Identity: `UserManager<Person>` kullanımı (kullanıcı yönetimi), `RoleManager<IdentityRole>`.
+4) Önemli kod akışları (4–6 dk)
+   - Register: `UserManager.CreateAsync` (email benzersizliği, parola kuralları).
+   - Login: `CheckPasswordAsync`, roller `GetRolesAsync`, JWT oluşturma (claims ile role ekleme).
+   - JWT: issuer/audience/signing key (appsettings.json).
+   - Role atama: `RoleController.AssignRole` (role varsa oluştur, yoksa ekle, sonra `AddToRoleAsync`).
+   - PersonController: list/get/update/delete, `[Authorize]` ve `[Authorize(Roles="Admin")]` kullanımı.
+5) Live demo (8–10 dk planlı akış)
+   - Hazırlık: app çalışıyor, DB migrasyon yapılmış, seed varsa hazır kullanıcılar.
+   - Adımlar:
+     1. Register / seed kullanıcısı kullan.
+     2. RoleController ile kullanıcıya "Admin" ata.
+     3. Login ol, JWT al.
+     4. `/api/auth/roles-in-token` ile token içindeki rolü göster.
+     5. Admin-only endpoint çağır (ör. PUT /api/users/{id}) ve izin verildiğini göster.
+   - Hata planı: token boşsa decode göster, role yoksa role atama adımını canlı yap.
+6) Son (3–4 dk)
+   - Limitler ve ileri adımlar: secret yönetimi (env/Key Vault), refresh token, logging, testler.
+7) Q&A (5–10 dk)
+
+Hangi dosyalara çalışmalısın (öncelik)
+- `Program.cs` — JWT config, authentication, Swagger security.
+- `AuthController.cs` — register/login, JWT claim üretimi.
+- `PersonController.cs` — kullanıcı CRUD ve yetkilendirme noktaları.
+- `RoleController.cs` — rol atama akışı.
+- `PersonSeeder.cs` — seed mantığı.
+- `appsettings.json` — connection string, JWT ayarları.
+
+PowerShell örnek (kısa)
+```
+# migration uygula
+dotnet ef database update
+
+# uygulamayı çalıştır
+dotnet run
+
+# login örneği (örnek)
+curl -X POST http://localhost:5074/api/auth/login -H "Content-Type: application/json" -d '{"email":"user1@example.com","password":"Password1!"}'
+```
+
+Kısa teknik cevaplar (hazırla)
+- Neden `UserManager` vs `_context`?
+  - `UserManager` Identity tarafından sağlanan servis; parola hashleme, ilişkili tabloları yönetme, rol/claim işlemleri için uygundur. Direkt `_context` ile yazmak Identity tutarlılığını bozar.
+- Roller nerede saklanır?
+  - `AspNetRoles` ve `AspNetUserRoles` tablolarında.
+- JWT güvenliği önemli noktalar?
+  - Signing key env/Key Vault’ta olmalı, token ömrü kısa tutulmalı, refresh token stratejisi düşünülmeli.
+
+---
+
+DOSYAYA EKLENECEK SORU FORMATI (gelecekte eklenecek Q4, Q5... için)
+Her yeni soru dosyaya aşağıdaki formatta eklenecek.
+
+Qn - SORU KALİTE BAREMİ
+- Interview relevance: 0-10 (mülakatla ne kadar alakalı)
+- Backend relevance: 0-10 (genel backend geliştirme ile alaka düzeyi)
+
+--Orijinal Soru (kısa, gerektiği gibi düzeltilmiş)
+Soru: <düzeltilmiş, net versiyon>
+
+--Cevap (teknik, doğru, kısa ama yeterli)
+Cevap: <detaylı teknik cevap>
+
+---
+
+ÖRNEK GİRİŞ (Q1)
+Q1 - SORU KALİTE BAREMİ
+- Interview relevance: 9
+- Backend relevance: 10
+
+--Orijinal Soru
+Soru: Why should I use `UserManager` instead of directly saving a user with `_context.Persons.Add(...)`?
+
+--Cevap
+Cevap: `UserManager<TUser>` is part of ASP.NET Identity and handles password hashing, validation, user token generation, role/claim management and works with the Identity tables (AspNetUsers, AspNetUserRoles, AspNetUserClaims). If you add a user directly with `_context`, you bypass password hashing, validators and Identity-related side effects. Use `_userManager.CreateAsync(user, password)` so Identity stores the hash correctly and updates related tables.
+
+---
+
+Q2 - SORU KALİTE BAREMİ
+- Interview relevance: 9
+- Backend relevance: 9
+
+--Orijinal Soru
+Soru: Claim nedir?
+
+--Cevap
+Cevap: Claim, bir kullanıcının kimliğine dair anahtar-değer çiftidir (ör. user id, email, role). JWT içinde payload olarak taşınır ve uygulama tarafından kimlik doğrulama/izin kararlarında (authorize policy, role check) kullanılır. ASP.NET Identity'de claim'ler hem token içinde hem de `AspNetUserClaims` tablosunda saklanabilir.
+
+---
+
+DOSYA NOTU
+- Bundan sonra bana bir soru sorduğunda ben soruyu teknik olarak düzelterek, kalite baremini verip, teknik cevabı yazıp bu dosyaya Q4, Q5 şeklinde ekleyeceğim.
+- Eğer farklı bir format istersen şimdi söyle; yoksa bu formatta devam edeceğim.
+
